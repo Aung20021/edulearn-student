@@ -37,7 +37,10 @@ const CourseItem = ({ course, handleUnenroll }) => {
           {course.title}
         </h2>
         <p className="text-gray-600 mb-2">{course.category}</p>
-        <p className="text-gray-500 mb-4">Teacher: {course.teacher.name}</p>
+        <p className="text-gray-500 mb-4">
+          Teacher: {course?.teacher?.name || "N/A"}
+        </p>
+
         <button
           onClick={() => handleUnenroll(course._id)}
           className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 transition-all"

@@ -18,6 +18,7 @@ const UserSchema = new mongoose.Schema({
     endDate: { type: Date },
     stripeCustomerId: { type: String },
     stripeSubscriptionId: { type: String },
+    isCancelled: { type: Boolean, default: false }, // <-- NEW FIELD
   },
   viewedCourses: [
     {

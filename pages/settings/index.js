@@ -14,13 +14,13 @@ export default function Settings() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
-  const [imageFile, setImageFile] = useState(null); // Corrected here
+  const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [subscription, setSubscription] = useState(null); // Removed the TypeScript-style annotation
+  const [subscription, setSubscription] = useState(null);
   const [timeLeft, setTimeLeft] = useState("");
+  const [unsubscribeLoading, setUnsubscribeLoading] = useState(false);
 
-  // Fetch user data from DB
   useEffect(() => {
     const fetchUserInfo = async () => {
       if (!session?.user?.email) return;
@@ -47,12 +47,10 @@ export default function Settings() {
     fetchUserInfo();
   }, [session?.user?.email]);
 
-  // Fetch subscription status
   useEffect(() => {
     const fetchSubscriptionStatus = async () => {
       try {
         const { data } = await axios.get("/api/subscription-status");
-
         if (data?.subscription) {
           setSubscription(data.subscription);
           updateTimeLeft(data.subscription.endDate);
@@ -65,36 +63,15 @@ export default function Settings() {
     fetchSubscriptionStatus();
   }, []);
 
-  // Timer for updating timeLeft
   useEffect(() => {
     if (!subscription?.endDate || !subscription.isActive) return;
 
     const interval = setInterval(() => {
       updateTimeLeft(subscription.endDate);
-    }, 60000); // update every minute
+    }, 60000);
 
     return () => clearInterval(interval);
-  }, [subscription]);
-  const handleUnsubscribe = async () => {
-    if (!confirm("Are you sure you want to cancel your subscription?")) return;
-
-    try {
-      const res = await axios.post("/api/unsubscribe");
-      if (res.status === 200) {
-        toast.success("Unsubscribed successfully.");
-        setSubscription((prev) => ({
-          ...prev,
-          isActive: false,
-          endDate: new Date().toISOString(), // Set to now
-        }));
-      } else {
-        toast.error(res.data?.error || "Failed to unsubscribe.");
-      }
-    } catch (err) {
-      console.error("Unsubscribe error:", err);
-      toast.error("Failed to unsubscribe.");
-    }
-  };
+  }, [subscription?.endDate, subscription?.isActive]);
 
   const updateTimeLeft = (endDate) => {
     const now = new Date();
@@ -163,6 +140,28 @@ export default function Settings() {
     }
   };
 
+  const handleUnsubscribe = async () => {
+    if (!confirm("Are you sure you want to cancel your subscription?")) return;
+    setUnsubscribeLoading(true);
+    try {
+      const res = await axios.post("/api/unsubscribe");
+
+      if (res.status === 200) {
+        const updatedSubscription = res.data.subscription;
+        toast.success("Unsubscribed successfully.");
+
+        setSubscription(updatedSubscription);
+      } else {
+        toast.error(res.data?.error || "Failed to unsubscribe.");
+      }
+    } catch (err) {
+      console.error("Unsubscribe error:", err);
+      toast.error("Failed to unsubscribe.");
+    } finally {
+      setUnsubscribeLoading(false);
+    }
+  };
+
   const logout = async () => {
     await signOut({ callbackUrl: "/" });
   };
@@ -190,7 +189,12 @@ export default function Settings() {
         transition={{ duration: 0.6 }}
       >
         {/* Left Panel */}
-        <div className="space-y-6 sm:col-span-1">
+        <motion.div
+          className="space-y-6 sm:col-span-1"
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
           <h2 className="text-3xl font-extrabold text-blue-800">Settings</h2>
           <p className="text-gray-500 text-sm">
             Manage your account info and subscription. Changes will reflect
@@ -203,18 +207,27 @@ export default function Settings() {
                 <div className="font-medium text-blue-800 mb-1">
                   Subscription Status
                 </div>
+
                 <p>
                   <span className="font-semibold">Status:</span>{" "}
                   {subscription.isActive ? (
-                    <span className="text-green-600">Active</span>
+                    subscription.isCancelled ? (
+                      <span className="text-yellow-600">
+                        Active (Cancelling)
+                      </span>
+                    ) : (
+                      <span className="text-green-600">Active</span>
+                    )
                   ) : (
                     <span className="text-red-500">Inactive</span>
                   )}
                 </p>
+
                 <p>
                   <span className="font-semibold">Interval:</span>{" "}
-                  {subscription.interval}
+                  {subscription.interval || "N/A"}
                 </p>
+
                 <p>
                   <span className="font-semibold">Time Left:</span>{" "}
                   {subscription.isActive ? timeLeft : "Expired"}
@@ -223,18 +236,28 @@ export default function Settings() {
                 {subscription.isActive && (
                   <button
                     onClick={handleUnsubscribe}
-                    className="mt-3 inline-block px-4 py-2 rounded-md bg-yellow-500 text-white hover:bg-yellow-600 text-xs font-medium"
+                    className="mt-3 inline-block px-4 py-2 rounded-md bg-yellow-500 text-white hover:bg-yellow-600 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={unsubscribeLoading || subscription.isCancelled}
                   >
-                    Cancel Subscription
+                    {unsubscribeLoading
+                      ? "Cancelling..."
+                      : subscription.isCancelled
+                        ? "Already Cancelled"
+                        : "Cancel Subscription"}
                   </button>
                 )}
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Right Panel */}
-        <div className="sm:col-span-2 space-y-6">
+        <motion.div
+          className="sm:col-span-2 space-y-6"
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+        >
           {/* Name Field */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1">
@@ -293,7 +316,7 @@ export default function Settings() {
               {loading ? "Saving..." : "Save Changes"}
             </button>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   );

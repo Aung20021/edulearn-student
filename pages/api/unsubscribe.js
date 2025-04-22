@@ -45,6 +45,7 @@ export default async function handler(req, res) {
       ...user.subscription,
       isActive,
       endDate: newEndDate,
+      isCancelled: true, // <- Mark as cancelled
     };
 
     await user.save();
